@@ -5,7 +5,9 @@ This is a Python 3.5 compatible fork of
 `David Beazley's sly <https://github.com/dabeaz/sly>`_.
 To install it, make sure you have git and pip, and then run this:
 
-$ python3.5 -m pip install git+https://github.com/Akuli/sly35
+.. code-block:: shell
+
+    $ python3.5 -m pip install git+https://github.com/Akuli/sly35
 
 If you want me to upload this thing to PyPI so that you can do
 ``pip install sly35`` or something, let me know by creating an issue on
