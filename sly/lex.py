@@ -33,6 +33,7 @@
 
 __all__ = ['Lexer', 'LexerStateChange']
 
+import collections
 import re
 import copy
 
@@ -75,7 +76,7 @@ class Token(object):
     '''
     __slots__ = ('type', 'value', 'lineno', 'index')
     def __repr__(self):
-        return f'Token(type={self.type!r}, value={self.value!r}, lineno={self.lineno}, index={self.index})'
+        return 'Token(type={!r}, value={!r}, lineno={}, index={})'.format(self.type, self.value, self.lineno, self.index)
 
 class TokenStr(str):
     @staticmethod
@@ -100,14 +101,14 @@ class _Before:
         self.tok = tok
         self.pattern = pattern
 
-class LexerMetaDict(dict):
+class LexerMetaDict(collections.OrderedDict):
     '''
     Special dictionary that prohibits duplicate definitions in lexer specifications.
     '''
     def __init__(self):
-        self.before = { }
+        self.before = collections.OrderedDict()
         self.delete = [ ]
-        self.remap = { }
+        self.remap = collections.OrderedDict()
 
     def __setitem__(self, key, value):
         if isinstance(value, str):
@@ -123,7 +124,7 @@ class LexerMetaDict(dict):
                 if callable(value):
                     value.pattern = prior
                 else:
-                    raise AttributeError(f'Name {key} redefined')
+                    raise AttributeError('Name {} redefined'.format(key))
 
         super().__setitem__(key, value)
 
@@ -151,7 +152,7 @@ class LexerMeta(type):
         def _(pattern, *extra):
             patterns = [pattern, *extra]
             def decorate(func):
-                pattern = '|'.join(f'({pat})' for pat in patterns )
+                pattern = '|'.join('({})'.format(pat) for pat in patterns )
                 if hasattr(func, 'pattern'):
                     func.pattern = pattern + '|' + func.pattern
                 else:
@@ -173,7 +174,7 @@ class LexerMeta(type):
         cls = super().__new__(meta, clsname, bases, cls_attributes)
 
         # Attach various metadata to the class
-        cls._attributes = dict(attributes)
+        cls._attributes = collections.OrderedDict(attributes)
         cls._remap = attributes.remap
         cls._before = attributes.before
         cls._delete = attributes.delete
@@ -189,11 +190,11 @@ class Lexer(metaclass=LexerMeta):
     regex_module = re
 
     _token_names = set()
-    _token_funcs = {}
+    _token_funcs = collections.OrderedDict()
     _ignored_tokens = set()
-    _remapping = {}
-    _delete = {}
-    _remap = {}
+    _remapping = collections.OrderedDict()
+    _delete = collections.OrderedDict()
+    _remap = collections.OrderedDict()
 
     # Internal attributes
     __state_stack = None
@@ -224,12 +225,12 @@ class Lexer(metaclass=LexerMeta):
                 rules.extend(base._rules)
                 
         # Dictionary of previous rules
-        existing = dict(rules)
+        existing = collections.OrderedDict(rules)
 
         for key, value in cls._attributes.items():
             if (key in cls._token_names) or key.startswith('ignore_') or hasattr(value, 'pattern'):
                 if callable(value) and not hasattr(value, 'pattern'):
-                    raise LexerBuildError(f"function {value} doesn't have a regex pattern")
+                    raise LexerBuildError("function {} doesn't have a regex pattern".format(value))
                 
                 if key in existing:
                     # The definition matches something that already existed in the base class.
@@ -253,7 +254,7 @@ class Lexer(metaclass=LexerMeta):
                     existing[key] = value
 
             elif isinstance(value, str) and not key.startswith('_') and key not in {'ignore', 'literals'}:
-                raise LexerBuildError(f'{key} does not match a name in tokens')
+                raise LexerBuildError('{} does not match a name in tokens'.format(key))
 
         # Apply deletion rules
         rules = [ (key, value) for key, value in rules if key not in cls._delete ]
@@ -266,17 +267,17 @@ class Lexer(metaclass=LexerMeta):
         Validate the rules to make sure they look sane.
         '''
         if 'tokens' not in vars(cls):
-            raise LexerBuildError(f'{cls.__qualname__} class does not define a tokens attribute')
+            raise LexerBuildError('{} class does not define a tokens attribute'.format(cls.__qualname__))
 
         # Pull definitions created for any parent classes
         cls._token_names = cls._token_names | set(cls.tokens)
         cls._ignored_tokens = set(cls._ignored_tokens)
-        cls._token_funcs = dict(cls._token_funcs)
-        cls._remapping = dict(cls._remapping)
+        cls._token_funcs = collections.OrderedDict(cls._token_funcs)
+        cls._remapping = collections.OrderedDict(cls._remapping)
 
         for (key, val), newtok in cls._remap.items():
             if key not in cls._remapping:
-                cls._remapping[key] = {}
+                cls._remapping[key] = collections.OrderedDict()
             cls._remapping[key][val] = newtok
 
         remapped_toks = set()
@@ -286,7 +287,7 @@ class Lexer(metaclass=LexerMeta):
         undefined = remapped_toks - set(cls._token_names)
         if undefined:
             missing = ', '.join(undefined)
-            raise LexerBuildError(f'{missing} not included in token(s)')
+            raise LexerBuildError('{} not included in token(s)'.format(missing))
 
         cls._collect_rules()
 
@@ -304,17 +305,17 @@ class Lexer(metaclass=LexerMeta):
                 pattern = getattr(value, 'pattern')
 
             # Form the regular expression component
-            part = f'(?P<{tokname}>{pattern})'
+            part = '(?P<{}>{})'.format(tokname, pattern)
 
             # Make sure the individual regex compiles properly
             try:
                 cpat = cls.regex_module.compile(part, cls.reflags)
             except Exception as e:
-                raise PatternError(f'Invalid regex for token {tokname}') from e
+                raise PatternError('Invalid regex for token {}'.format(tokname)) from e
 
             # Verify that the pattern doesn't match the empty string
             if cpat.match(''):
-                raise PatternError(f'Regex for token {tokname} matches empty input')
+                raise PatternError('Regex for token {} matches empty input'.format(tokname))
 
             parts.append(part)
 
@@ -436,4 +437,4 @@ class Lexer(metaclass=LexerMeta):
 
     # Default implementations of the error handler. May be changed in subclasses
     def error(self, t):
-        raise LexError(f'Illegal character {t.value[0]!r} at index {self.index}', t.value, self.index)
+        raise LexError('Illegal character {!r} at index {}'.format(t.value[0], self.index), t.value, self.index)

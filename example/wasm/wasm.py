@@ -8,6 +8,7 @@
 
 import struct
 import enum
+import collections
 from collections import defaultdict
 import json
 
@@ -97,7 +98,7 @@ class HexEnumMeta(enum.EnumMeta):
 
 class HexEnum(enum.IntEnum):
     def __repr__(self):
-        return f'<{self!s}: 0x{self:x}>'
+        return '<{!s}: 0x{:x}>'.format(self, self)
 
 HexEnum.__class__ = HexEnumMeta
 
@@ -518,7 +519,7 @@ class Type:
         self.idx = idx
 
     def __repr__(self):
-        return f'{self.parms!r} -> {self.results!r}'
+        return '{!r} -> {!r}'.format(self.parms, self.results)
 
 class ImportFunction:
     def __init__(self, name, typesig, idx):
@@ -527,7 +528,7 @@ class ImportFunction:
         self._idx = idx
 
     def __repr__(self):
-        return f'ImportFunction({self._name}, {self._typesig}, {self._idx})'
+        return 'ImportFunction({}, {}, {})'.format(self._name, self._typesig, self._idx)
 
 class Function(InstructionBuilder):
     def __init__(self, name, typesig, idx, export=True):
@@ -539,7 +540,7 @@ class Function(InstructionBuilder):
         self._idx = idx
 
     def __repr__(self):
-        return f'Function({self._name}, {self._typesig}, {self._idx})'
+        return 'Function({}, {}, {})'.format(self._name, self._typesig, self._idx)
 
     # Allocate a new local variable of a given type
     def alloc(self, valuetype):
@@ -553,7 +554,7 @@ class ImportGlobal:
         self.idx = idx
 
     def __repr__(self):
-        return f'ImportGlobal({self.name}, {self.valtype}, {self.idx})'
+        return 'ImportGlobal({}, {}, {})'.format(self.name, self.valtype, self.idx)
 
 class Global:
     def __init__(self, name, valtype, initializer, idx):
@@ -563,7 +564,7 @@ class Global:
         self.idx = idx
 
     def __repr__(self):
-        return f'Global({self.name}, {self.valtype}, {self.initializer}, {self.idx})'
+        return 'Global({}, {}, {}, {})'.format(self.name, self.valtype, self.initializer, self.idx)
 
 class Module:
     def __init__(self):
@@ -613,7 +614,7 @@ class Module:
         # Output for JS/Html
         self.js_exports = "";
         self.html_exports = "";
-        self.js_imports = defaultdict(dict)
+        self.js_imports = defaultdict(collections.OrderedDict)
 
     def add_type(self, parms, results):
         enc = encode_function_type(parms, results)
@@ -630,9 +631,9 @@ class Module:
         typesig = self.add_type(parms, results)
         code = encode_name(module) + encode_name(name) + b'\x00' + encode_unsigned(typesig.idx)
         self.import_section.append(code)
-        self.js_imports[module][name] = f"function: {typesig}"
+        self.js_imports[module][name] = "function: {}".format(typesig)
         self.funcidx += 1
-        return ImportFunction(f'{module}.{name}', typesig, self.funcidx - 1)
+        return ImportFunction('{}.{}'.format(module, name), typesig, self.funcidx - 1)
 
     def import_table(self, module, name, elemtype, min, max=None):
         code = encode_name(module) + encode_name(name) + b'\x01' + encode_table_type(elemtype, min, max)
@@ -654,9 +655,9 @@ class Module:
 
         code = encode_name(module) + encode_name(name) + b'\x03' + encode_global_type(value_type, False)
         self.import_section.append(code)
-        self.js_imports[module][name] = f"global: {value_type}"
+        self.js_imports[module][name] = "global: {}".format(value_type)
         self.globalidx += 1
-        return ImportGlobal(f'{module}.{name}', value_type, self.globalidx - 1)
+        return ImportGlobal('{}.{}'.format(module, name), value_type, self.globalidx - 1)
 
     def add_function(self, name, parms, results, export=True):
         typesig = self.add_type(parms, results)
@@ -664,7 +665,7 @@ class Module:
         self.funcidx += 1
         self.functions.append(func)
         self.function_section.append(encode_unsigned(typesig.idx))
-        self.html_exports += f'<p><tt>{name}({", ".join(str(p) for p in parms)}) -> {results[0]!s}</tt></p>\n'
+        self.html_exports += '<p><tt>{}({}) -> {!s}</tt></p>\n'.format(name, ", ".join(str(p) for p in parms), results[0])
         return func
 
     def add_table(self, elemtype, min, max=None):
@@ -692,7 +693,7 @@ class Module:
     def export_function(self, name, funcidx):
         code = encode_name(name) + b'\x00' + encode_unsigned(funcidx)
         self.export_section.append(code)
-        self.js_exports += f'window.{name} = results.instance.exports.{name};\n'
+        self.js_exports += 'window.{} = results.instance.exports.{};\n'.format(name, name)
 
 
     def export_table(self, name, tableidx):
@@ -760,11 +761,11 @@ class Module:
         return code
 
     def write_wasm(self, modname):
-        with open(f'{modname}.wasm', 'wb') as f:
+        with open('{}.wasm'.format(modname), 'wb') as f:
             f.write(self.encode())
 
     def write_html(self, modname):
-        with open(f'{modname}.html', 'wt') as f:
+        with open('{}.html'.format(modname), 'wt') as f:
             f.write(js_template.format(
                     module=modname,
                     imports=json.dumps(self.js_imports, indent=4),

@@ -105,7 +105,7 @@ class YaccProduction:
     __slots__ = ('_slice', '_namemap', '_stack')
     def __init__(self, s, stack=None):
         self._slice = s
-        self._namemap = { }
+        self._namemap = OrderedDict()
         self._stack = stack
 
     def __getitem__(self, n):
@@ -148,13 +148,13 @@ class YaccProduction:
             return self._slice[self._namemap[name]].value
         else:
             nameset = '{' + ', '.join(self._namemap) + '}'
-            raise AttributeError(f'No symbol {name}. Must be one of {nameset}.')
+            raise AttributeError('No symbol {}. Must be one of {}.'.format(name, nameset))
 
     def __setattr__(self, name, value):
         if name[:1] == '_':
             super().__setattr__(name, value)
         else:
-            raise AttributeError(f"Can't reassign the value of attribute {name!r}")
+            raise AttributeError("Can't reassign the value of attribute {!r}".format(name))
 
 # -----------------------------------------------------------------------------
 #                          === Grammar Representation ===
@@ -209,8 +209,8 @@ class Production(object):
             if s not in self.usyms:
                 self.usyms.append(s)
 
-        # Create a dict mapping symbol names to indices
-        m = {}
+        # Create a OrderedDict mapping symbol names to indices
+        m = OrderedDict()
         for key, indices in symmap.items():
             if len(indices) == 1:
                 m[key] = indices[0]
@@ -228,7 +228,7 @@ class Production(object):
         if self.prod:
             s = '%s -> %s' % (self.name, ' '.join(self.prod))
         else:
-            s = f'{self.name} -> <empty>'
+            s = '{} -> <empty>'.format(self.name)
 
         if self.prec[1]:
             s += '  [precedence=%s, level=%d]' % self.prec
@@ -236,7 +236,7 @@ class Production(object):
         return s
 
     def __repr__(self):
-        return f'Production({self})'
+        return 'Production({})'.format(self)
 
     def __len__(self):
         return len(self.prod)
@@ -294,7 +294,7 @@ class LRItem(object):
         self.prod       = list(p.prod)
         self.number     = p.number
         self.lr_index   = n
-        self.lookaheads = {}
+        self.lookaheads = OrderedDict()
         self.prod.insert(n, '.')
         self.prod       = tuple(self.prod)
         self.len        = len(self.prod)
@@ -304,11 +304,11 @@ class LRItem(object):
         if self.prod:
             s = '%s -> %s' % (self.name, ' '.join(self.prod))
         else:
-            s = f'{self.name} -> <empty>'
+            s = '{} -> <empty>'.format(self.name)
         return s
 
     def __repr__(self):
-        return f'LRItem({self})'
+        return 'LRItem({})'.format(self)
 
 # -----------------------------------------------------------------------------
 # rightmost_terminal()
@@ -340,13 +340,13 @@ class Grammar(object):
                                     # entry is always reserved for the purpose of
                                     # building an augmented grammar
 
-        self.Prodnames    = {}      # A dictionary mapping the names of nonterminals to a list of all
+        self.Prodnames    = OrderedDict()      # A dictionary mapping the names of nonterminals to a list of all
                                     # productions of that nonterminal.
 
-        self.Prodmap      = {}      # A dictionary that is only used to detect duplicate
+        self.Prodmap      = OrderedDict()      # A dictionary that is only used to detect duplicate
                                     # productions.
 
-        self.Terminals    = {}      # A dictionary mapping the names of terminal symbols to a
+        self.Terminals    = OrderedDict()      # A dictionary mapping the names of terminal symbols to a
                                     # list of the rules where they are used.
 
         for term in terminals:
@@ -354,14 +354,14 @@ class Grammar(object):
 
         self.Terminals['error'] = []
 
-        self.Nonterminals = {}      # A dictionary mapping names of nonterminals to a list
+        self.Nonterminals = OrderedDict()      # A dictionary mapping names of nonterminals to a list
                                     # of rule numbers where they are used.
 
-        self.First        = {}      # A dictionary of precomputed FIRST(x) symbols
+        self.First        = OrderedDict()      # A dictionary of precomputed FIRST(x) symbols
 
-        self.Follow       = {}      # A dictionary of precomputed FOLLOW(x) symbols
+        self.Follow       = OrderedDict()      # A dictionary of precomputed FOLLOW(x) symbols
 
-        self.Precedence   = {}      # Precedence rules for each terminal. Contains tuples of the
+        self.Precedence   = OrderedDict()      # Precedence rules for each terminal. Contains tuples of the
                                     # form ('right',level) or ('nonassoc', level) or ('left',level)
 
         self.UsedPrecedence = set() # Precedence rules that were actually used by the grammer.
@@ -388,9 +388,9 @@ class Grammar(object):
     def set_precedence(self, term, assoc, level):
         assert self.Productions == [None], 'Must call set_precedence() before add_production()'
         if term in self.Precedence:
-            raise GrammarError(f'Precedence already specified for terminal {term!r}')
+            raise GrammarError('Precedence already specified for terminal {!r}'.format(term))
         if assoc not in ['left', 'right', 'nonassoc']:
-            raise GrammarError(f"Associativity of {term!r} must be one of 'left','right', or 'nonassoc'")
+            raise GrammarError("Associativity of {!r} must be one of 'left','right', or 'nonassoc'".format(term))
         self.Precedence[term] = (assoc, level)
 
     # -----------------------------------------------------------------------------
@@ -413,16 +413,16 @@ class Grammar(object):
     def add_production(self, prodname, syms, func=None, file='', line=0):
 
         if prodname in self.Terminals:
-            raise GrammarError(f'{file}:{line}: Illegal rule name {prodname!r}. Already defined as a token')
+            raise GrammarError('{}:{}: Illegal rule name {!r}. Already defined as a token'.format(file, line, prodname))
         if prodname == 'error':
-            raise GrammarError(f'{file}:{line}: Illegal rule name {prodname!r}. error is a reserved word')
+            raise GrammarError('{}:{}: Illegal rule name {!r}. error is a reserved word'.format(file, line, prodname))
 
         # Look for literal tokens
         for n, s in enumerate(syms):
             if s[0] in "'\"" and s[0] == s[-1]:
                 c = s[1:-1]
                 if (len(c) != 1):
-                    raise GrammarError(f'{file}:{line}: Literal token {s} in rule {prodname!r} may only be a single character')
+                    raise GrammarError('{}:{}: Literal token {} in rule {!r} may only be a single character'.format(file, line, s, prodname))
                 if c not in self.Terminals:
                     self.Terminals[c] = []
                 syms[n] = c
@@ -431,13 +431,13 @@ class Grammar(object):
         # Determine the precedence level
         if '%prec' in syms:
             if syms[-1] == '%prec':
-                raise GrammarError(f'{file}:{line}: Syntax error. Nothing follows %%prec')
+                raise GrammarError('{}:{}: Syntax error. Nothing follows %%prec'.format(file, line))
             if syms[-2] != '%prec':
-                raise GrammarError(f'{file}:{line}: Syntax error. %prec can only appear at the end of a grammar rule')
+                raise GrammarError('{}:{}: Syntax error. %prec can only appear at the end of a grammar rule'.format(file, line))
             precname = syms[-1]
             prodprec = self.Precedence.get(precname)
             if not prodprec:
-                raise GrammarError(f'{file}:{line}: Nothing known about the precedence of {precname!r}')
+                raise GrammarError('{}:{}: Nothing known about the precedence of {!r}'.format(file, line, precname))
             else:
                 self.UsedPrecedence.add(precname)
             del syms[-2:]     # Drop %prec from the rule
@@ -450,8 +450,8 @@ class Grammar(object):
         map = '%s -> %s' % (prodname, syms)
         if map in self.Prodmap:
             m = self.Prodmap[map]
-            raise GrammarError(f'{file}:{line}: Duplicate rule {m}. ' +
-                               f'Previous definition at {m.file}:{m.line}')
+            raise GrammarError('{}:{}: Duplicate rule {}. '.format(file, line, m) +
+                               'Previous definition at {}:{}'.format(m.file, m.line))
 
         # From this point on, everything is valid.  Create a new Production instance
         pnumber  = len(self.Productions)
@@ -490,7 +490,7 @@ class Grammar(object):
             start = self.Productions[1].name
 
         if start not in self.Nonterminals:
-            raise GrammarError(f'start symbol {start} undefined')
+            raise GrammarError('start symbol {} undefined'.format(start))
         self.Productions[0] = Production(0, "S'", [start])
         self.Nonterminals[start].append(0)
         self.Start = start
@@ -526,7 +526,7 @@ class Grammar(object):
     # -----------------------------------------------------------------------------
 
     def infinite_cycles(self):
-        terminates = {}
+        terminates = OrderedDict()
 
         # Terminals:
         for t in self.Terminals:
@@ -822,13 +822,13 @@ class Grammar(object):
         out = []
         out.append('Grammar:\n')
         for n, p in enumerate(self.Productions):
-            out.append(f'Rule {n:<5d} {p}')
+            out.append('Rule {:<5d} {}'.format(n, p))
         
         unused_terminals = self.unused_terminals()
         if unused_terminals:
             out.append('\nUnused terminals:\n')
             for term in unused_terminals:
-                out.append(f'    {term}')
+                out.append('    {}'.format(term))
 
         out.append('\nTerminals, with rules where they appear:\n')
         for term in sorted(self.Terminals):
@@ -866,11 +866,11 @@ class Grammar(object):
 # ------------------------------------------------------------------------------
 
 def digraph(X, R, FP):
-    N = {}
+    N = OrderedDict()
     for x in X:
         N[x] = 0
     stack = []
-    F = {}
+    F = OrderedDict()
     for x in X:
         if N[x] == 0:
             traverse(x, N, stack, F, X, R, FP)
@@ -914,11 +914,11 @@ class LRTable(object):
         self.grammar = grammar
 
         # Internal attributes
-        self.lr_action     = {}        # Action table
-        self.lr_goto       = {}        # Goto table
+        self.lr_action     = OrderedDict()        # Action table
+        self.lr_goto       = OrderedDict()        # Goto table
         self.lr_productions  = grammar.Productions    # Copy of grammar Production array
-        self.lr_goto_cache = {}        # Cache of computed gotos
-        self.lr0_cidhash   = {}        # Cache of closures
+        self.lr_goto_cache = OrderedDict()        # Cache of computed gotos
+        self.lr0_cidhash   = OrderedDict()        # Cache of closures
         self._add_count    = 0         # Internal counter used to detect cycles
 
         # Diagonistic information filled in by the table generator
@@ -944,7 +944,7 @@ class LRTable(object):
         # each other or change states (i.e., manipulation of scope, lexer states, etc.).
         #
         # See:  http://www.gnu.org/software/bison/manual/html_node/Default-Reductions.html#Default-Reductions
-        self.defaulted_states = {}
+        self.defaulted_states = OrderedDict()
         for state, actions in self.lr_action.items():
             rules = list(actions.values())
             if len(rules) == 1 and rules[0] < 0:
@@ -988,7 +988,7 @@ class LRTable(object):
 
         s = self.lr_goto_cache.get(x)
         if not s:
-            s = {}
+            s = OrderedDict()
             self.lr_goto_cache[x] = s
 
         gs = []
@@ -997,7 +997,7 @@ class LRTable(object):
             if n and n.lr_before == x:
                 s1 = s.get(id(n))
                 if not s1:
-                    s1 = {}
+                    s1 = OrderedDict()
                     s[id(n)] = s1
                 gs.append(n)
                 s = s1
@@ -1026,7 +1026,7 @@ class LRTable(object):
             i += 1
 
             # Collect all of the symbols that could possibly be in the goto(I,X) sets
-            asyms = {}
+            asyms = OrderedDict()
             for ii in I:
                 for s in ii.usyms:
                     asyms[s] = None
@@ -1118,7 +1118,7 @@ class LRTable(object):
     # -----------------------------------------------------------------------------
 
     def dr_relation(self, C, trans, nullable):
-        dr_set = {}
+        dr_set = OrderedDict()
         state, N = trans
         terms = []
 
@@ -1186,11 +1186,11 @@ class LRTable(object):
     # -----------------------------------------------------------------------------
 
     def compute_lookback_includes(self, C, trans, nullable):
-        lookdict = {}          # Dictionary of lookback relations
-        includedict = {}       # Dictionary of include relations
+        lookdict = OrderedDict()          # Dictionary of lookback relations
+        includedict = OrderedDict()       # Dictionary of include relations
 
         # Make a dictionary of non-terminal transitions
-        dtrans = {}
+        dtrans = OrderedDict()
         for t in trans:
             dtrans[t] = 1
 
@@ -1353,7 +1353,7 @@ class LRTable(object):
         goto   = self.lr_goto         # Goto array
         action = self.lr_action       # Action array
 
-        actionp = {}                  # Action production array (temporary)
+        actionp = OrderedDict()                  # Action production array (temporary)
 
         # Step 1: Construct C = { I0, I1, ... IN}, collection of LR(0) items
         # This determines the number of states
@@ -1366,13 +1366,13 @@ class LRTable(object):
             descrip = []
             # Loop over each production in I
             actlist = []              # List of actions
-            st_action  = {}
-            st_actionp = {}
-            st_goto    = {}
+            st_action  = OrderedDict()
+            st_actionp = OrderedDict()
+            st_goto    = OrderedDict()
 
-            descrip.append(f'\nstate {st}\n')
+            descrip.append('\nstate {}\n'.format(st))
             for p in I:
-                descrip.append(f'    ({p.number}) {p}')
+                descrip.append('    ({}) {}'.format(p.number, p))
 
             for p in I:
                     if p.len == p.lr_index + 1:
@@ -1384,7 +1384,7 @@ class LRTable(object):
                             # We are at the end of a production.  Reduce!
                             laheads = p.lookaheads[st]
                             for a in laheads:
-                                actlist.append((a, p, f'reduce using rule {p.number} ({p})'))
+                                actlist.append((a, p, 'reduce using rule {} ({})'.format(p.number, p)))
                                 r = st_action.get(a)
                                 if r is not None:
                                     # Have a shift/reduce or reduce/reduce conflict
@@ -1404,7 +1404,7 @@ class LRTable(object):
                                             st_action[a] = -p.number
                                             st_actionp[a] = p
                                             if not slevel and not rlevel:
-                                                descrip.append(f'  ! shift/reduce conflict for {a} resolved as reduce')
+                                                descrip.append('  ! shift/reduce conflict for {} resolved as reduce'.format(a))
                                                 self.sr_conflicts.append((st, a, 'reduce'))
                                             Productions[p.number].reduced += 1
                                         elif (slevel == rlevel) and (rprec == 'nonassoc'):
@@ -1412,7 +1412,7 @@ class LRTable(object):
                                         else:
                                             # Hmmm. Guess we'll keep the shift
                                             if not rlevel:
-                                                descrip.append(f'  ! shift/reduce conflict for {a} resolved as shift')
+                                                descrip.append('  ! shift/reduce conflict for {} resolved as shift'.format(a))
                                                 self.sr_conflicts.append((st, a, 'shift'))
                                     elif r < 0:
                                         # Reduce/reduce conflict.   In this case, we favor the rule
@@ -1431,7 +1431,7 @@ class LRTable(object):
                                         descrip.append('  ! reduce/reduce conflict for %s resolved using rule %d (%s)' % 
                                                        (a, st_actionp[a].number, st_actionp[a]))
                                     else:
-                                        raise LALRError(f'Unknown conflict in state {st}')
+                                        raise LALRError('Unknown conflict in state {}'.format(st))
                                 else:
                                     st_action[a] = -p.number
                                     st_actionp[a] = p
@@ -1444,13 +1444,13 @@ class LRTable(object):
                             j = self.lr0_cidhash.get(id(g), -1)
                             if j >= 0:
                                 # We are in a shift state
-                                actlist.append((a, p, f'shift and go to state {j}'))
+                                actlist.append((a, p, 'shift and go to state {}'.format(j)))
                                 r = st_action.get(a)
                                 if r is not None:
                                     # Whoa have a shift/reduce or shift/shift conflict
                                     if r > 0:
                                         if r != j:
-                                            raise LALRError(f'Shift/shift conflict in state {st}')
+                                            raise LALRError('Shift/shift conflict in state {}'.format(st))
                                     elif r < 0:
                                         # Do a precedence check.
                                         #   -  if precedence of reduce rule is higher, we reduce.
@@ -1464,33 +1464,33 @@ class LRTable(object):
                                             st_action[a] = j
                                             st_actionp[a] = p
                                             if not rlevel:
-                                                descrip.append(f'  ! shift/reduce conflict for {a} resolved as shift')
+                                                descrip.append('  ! shift/reduce conflict for {} resolved as shift'.format(a))
                                                 self.sr_conflicts.append((st, a, 'shift'))
                                         elif (slevel == rlevel) and (rprec == 'nonassoc'):
                                             st_action[a] = None
                                         else:
                                             # Hmmm. Guess we'll keep the reduce
                                             if not slevel and not rlevel:
-                                                descrip.append(f'  ! shift/reduce conflict for {a} resolved as reduce')
+                                                descrip.append('  ! shift/reduce conflict for {} resolved as reduce'.format(a))
                                                 self.sr_conflicts.append((st, a, 'reduce'))
 
                                     else:
-                                        raise LALRError(f'Unknown conflict in state {st}')
+                                        raise LALRError('Unknown conflict in state {}'.format(st))
                                 else:
                                     st_action[a] = j
                                     st_actionp[a] = p
 
             # Print the actions associated with each terminal
-            _actprint = {}
+            _actprint = OrderedDict()
             for a, p, m in actlist:
                 if a in st_action:
                     if p is st_actionp[a]:
-                        descrip.append(f'    {a:<15s} {m}')
+                        descrip.append('    {:<15s} {}'.format(a, m))
                         _actprint[(a, m)] = 1
             descrip.append('')
 
             # Construct the goto table for this state
-            nkeys = {}
+            nkeys = OrderedDict()
             for ii in I:
                 for s in ii.usyms:
                     if s in self.grammar.Nonterminals:
@@ -1500,7 +1500,7 @@ class LRTable(object):
                 j = self.lr0_cidhash.get(id(g), -1)
                 if j >= 0:
                     st_goto[n] = j
-                    descrip.append(f'    {n:<30s} shift and go to state {j}')
+                    descrip.append('    {:<30s} shift and go to state {}'.format(n, j))
 
             action[st] = st_action
             actionp[st] = st_actionp
@@ -1520,20 +1520,20 @@ class LRTable(object):
             out.append('\nConflicts:\n')
 
             for state, tok, resolution in self.sr_conflicts:
-                out.append(f'shift/reduce conflict for {tok} in state {state} resolved as {resolution}')
+                out.append('shift/reduce conflict for {} in state {} resolved as {}'.format(tok, state, resolution))
 
             already_reported = set()
             for state, rule, rejected in self.rr_conflicts:
                 if (state, id(rule), id(rejected)) in already_reported:
                     continue
-                out.append(f'reduce/reduce conflict in state {state} resolved using rule {rule}')
-                out.append(f'rejected rule ({rejected}) in state {state}')
+                out.append('reduce/reduce conflict in state {} resolved using rule {}'.format(state, rule))
+                out.append('rejected rule ({}) in state {}'.format(rejected, state))
                 already_reported.add((state, id(rule), id(rejected)))
 
             warned_never = set()
             for state, rule, rejected in self.rr_conflicts:
                 if not rejected.reduced and (rejected not in warned_never):
-                    out.append(f'Rule ({rejected}) is never reduced')
+                    out.append('Rule ({}) is never reduced'.format(rejected))
                     warned_never.add(rejected)
 
         return '\n'.join(out)
@@ -1556,7 +1556,7 @@ def _collect_grammar_rules(func):
 
     return grammar
 
-class ParserMetaDict(dict):
+class ParserMetaDict(OrderedDict):
     '''
     Dictionary that allows decorated grammar rule functions to be overloaded
     '''
@@ -1564,7 +1564,7 @@ class ParserMetaDict(dict):
         if key in self and callable(value) and hasattr(value, 'rules'):
             value.next_func = self[key]
             if not hasattr(value.next_func, 'rules'):
-                raise GrammarError(f'Redefinition of {key}. Perhaps an earlier {key} is missing @_')
+                raise GrammarError('Redefinition of {}. Perhaps an earlier {} is missing @_'.format(key, key))
         super().__setitem__(key, value)
     
     def __getitem__(self, key):
@@ -1628,11 +1628,11 @@ class Parser(metaclass=ParserMeta):
 
         for level, p in enumerate(cls.precedence, start=1):
             if not isinstance(p, (list, tuple)):
-                cls.log.error(f'Bad precedence table entry {p!r}. Must be a list or tuple')
+                cls.log.error('Bad precedence table entry {!r}. Must be a list or tuple'.format(p))
                 return False
 
             if len(p) < 2:
-                cls.log.error(f'Malformed precedence entry {p!r}. Must be (assoc, term, ..., term)')
+                cls.log.error('Malformed precedence entry {!r}. Must be (assoc, term, ..., term)'.format(p))
                 return False
 
             if not all(isinstance(term, str) for term in p):
@@ -1674,7 +1674,7 @@ class Parser(metaclass=ParserMeta):
             try:
                 grammar.set_precedence(term, assoc, level)
             except GrammarError as e:
-                errors += f'{e}\n'
+                errors += '{}\n'.format(e)
 
         for name, func in rules:
             try:
@@ -1683,13 +1683,13 @@ class Parser(metaclass=ParserMeta):
                     try:
                         grammar.add_production(prodname, syms, pfunc, rulefile, ruleline)
                     except GrammarError as e:
-                        errors += f'{e}\n'
+                        errors += '{}\n'.format(e)
             except SyntaxError as e:
-                errors += f'{e}\n'
+                errors += '{}\n'.format(e)
         try:
             grammar.set_start(getattr(cls, 'start', None))
         except GrammarError as e:
-            errors += f'{e}\n'
+            errors += '{}\n'.format(e)
 
         undefined_symbols = grammar.undefined_symbols()
         for sym, prod in undefined_symbols:
@@ -1698,7 +1698,7 @@ class Parser(metaclass=ParserMeta):
         unused_terminals = grammar.unused_terminals()
         if unused_terminals:
             unused_str = '{' + ','.join(unused_terminals) + '}'
-            cls.log.warning(f'Token{"(s)" if len(unused_terminals) >1 else ""} {unused_str} defined, but not used')
+            cls.log.warning('Token{} {} defined, but not used'.format("(s)" if len(unused_terminals) >1 else "", unused_str))
 
         unused_rules = grammar.unused_rules()
         for prod in unused_rules:
@@ -1806,9 +1806,9 @@ class Parser(metaclass=ParserMeta):
         if token:
             lineno = getattr(token, 'lineno', 0)
             if lineno:
-                sys.stderr.write(f'sly: Syntax error at line {lineno}, token={token.type}\n')
+                sys.stderr.write('sly: Syntax error at line {}, token={}\n'.format(lineno, token.type))
             else:
-                sys.stderr.write(f'sly: Syntax error, token={token.type}')
+                sys.stderr.write('sly: Syntax error, token={}'.format(token.type))
         else:
             sys.stderr.write('sly: Parse error in input. EOF\n')
  

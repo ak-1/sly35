@@ -2,6 +2,7 @@
 # calc.py
 # -----------------------------------------------------------------------------
 
+import collections
 import sys
 sys.path.append('../..')
 
@@ -45,7 +46,7 @@ class CalcParser(Parser):
         )
 
     def __init__(self):
-        self.names = { }
+        self.names = collections.OrederedDict()
 
     @_('NAME ASSIGN expr')
     def statement(self, p):
@@ -88,7 +89,7 @@ class CalcParser(Parser):
         try:
             return self.names[p.NAME]
         except LookupError:
-            print(f'Undefined name {p.NAME!r}')
+            print('Undefined name {!r}'.format(p.NAME))
             return 0
 
 if __name__ == '__main__':

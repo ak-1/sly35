@@ -44,6 +44,7 @@
 # Wasm code through AST walking.  
 # -----------------------------------------------------------------------------
 
+import collections
 import sys
 sys.path.append('../..')
 
@@ -104,7 +105,7 @@ class ExprParser(Parser):
         )
 
     def __init__(self):
-        self.functions = { }
+        self.functions = collections.OrderedDict()
         self.module = wasm.Module()
 
     @_('functions function')
@@ -128,7 +129,7 @@ class ExprParser(Parser):
 
     @_('NAME LPAREN RPAREN')
     def function_decl(self, p):
-        self.locals = { }
+        self.locals = collections.OrderedDict()
         self.function = self.module.add_function(p.NAME, [], [wasm.i32])
         self.functions[p.NAME] = self.function
 
@@ -231,7 +232,7 @@ class ExprParser(Parser):
 if __name__ == '__main__':
     import sys
     if len(sys.argv) != 2:
-        raise SystemExit(f'Usage: {sys.argv[0]} module')
+        raise SystemExit('Usage: {} module'.format(sys.argv[0]))
     
     lexer = ExprLexer()
     parser = ExprParser()
@@ -240,6 +241,6 @@ if __name__ == '__main__':
     name = sys.argv[1].split('.')[0]
     parser.module.write_wasm(name)
     parser.module.write_html(name)
-    print(f'Wrote: {name}.wasm')
-    print(f'Wrote: {name}.html')
+    print('Wrote: {}.wasm'.format(name))
+    print('Wrote: {}.html'.format(name))
     print('Use python3 -m http.server to test')

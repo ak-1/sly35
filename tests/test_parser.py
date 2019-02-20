@@ -1,3 +1,5 @@
+import collections
+
 import pytest
 from sly import Lexer, Parser
 
@@ -46,7 +48,7 @@ class CalcParser(Parser):
         )
 
     def __init__(self):
-        self.names = { }
+        self.names = collections.OrderedDict()
         self.errors = [ ]
 
     @_('ID ASSIGN expr')

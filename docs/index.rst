@@ -57,6 +57,8 @@ expressions and store variables::
     # calc.py
     # -----------------------------------------------------------------------------
 
+    import collections
+
     from sly import Lexer, Parser
 
     class CalcLexer(Lexer):
@@ -90,7 +92,7 @@ expressions and store variables::
             )
 
         def __init__(self):
-            self.names = { }
+            self.names = collections.OrderedDict()
 
         @_('NAME "=" expr')
         def statement(self, p):

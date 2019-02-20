@@ -13,12 +13,12 @@ class AST(object):
 
         def __init__(self, *args, **kwargs):
             if len(hints) != len(args):
-                raise TypeError(f'Expected {len(hints)} arguments')
+                raise TypeError('Expected {} arguments'.format(len(hints)))
             for arg, (name, val) in zip(args, hints):
                 if isinstance(val, str):
                     val = getattr(mod, val)
                 if not isinstance(arg, val):
-                    raise TypeError(f'{name} argument must be {val}')
+                    raise TypeError('{} argument must be {}'.format(name, val))
                 setattr(self, name, arg)
 
         cls.__init__ = __init__

@@ -2,6 +2,7 @@
 # calc.py
 # -----------------------------------------------------------------------------
 
+import collections
 import sys
 sys.path.insert(0, "../..")
 
@@ -38,7 +39,7 @@ class CalcParser(Parser):
         )
 
     def __init__(self):
-        self.names = { }
+        self.names = collections.OrderedDict()
 
     @_('NAME "=" expr')
     def statement(self, p):

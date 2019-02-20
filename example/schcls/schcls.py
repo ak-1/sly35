@@ -2,6 +2,8 @@
 #
 # Proof of concept--not complete
 
+import collections
+
 from sly.docparse import DocParseMeta
 from sly import Lexer, Parser
 
@@ -24,7 +26,7 @@ class SchLexer(Lexer):
         self.lineno = t.lineno + t.value.count('\n')
 
     def error(self, t):
-        print(f"{self.cls_module}.{self.cls_name}:{self.lineno}: * Illegal character", repr(self.text[self.index]))
+        print("{}.{}:{}: * Illegal character".format(self.cls_module, self.cls_name, self.lineno), repr(self.text[self.index]))
         self.index += 1
 
 class SchParser(Parser):
@@ -34,7 +36,7 @@ class SchParser(Parser):
         ('left', '*','/')
         )
     def __init__(self):
-        self.env = { }
+        self.env = collections.OrderedDict()
 
     @_('declarations',
        '')
@@ -56,11 +58,11 @@ class SchParser(Parser):
     @_("'(' DEFINE '(' NAME arglist ')' exprlist ')'")
     def declaration(self, p):
         args = ','.join(p.arglist)
-        self.env[p.NAME] = eval(f"lambda {args}: ({','.join(p.exprlist)},)[-1]")
+        self.env[p.NAME] = eval("lambda {}: ({},)[-1]".format(args, ','.join(p.exprlist)))
 
     @_("'(' SET NAME '.' NAME expression ')'")
     def expression(self, p):
-        return f'setattr({p.NAME0}, {p.NAME1!r}, {p.expression})'
+        return 'setattr({}, {!r}, {})'.format(p.NAME0, p.NAME1, p.expression)
 
     @_("")
     def arglist(self, p):
@@ -114,15 +116,15 @@ class SchParser(Parser):
 
     @_("NAME '.' NAME")
     def name(self, p):
-        return f'{p.NAME0}.{p.NAME1}'
+        return '{}.{}'.format(p.NAME0, p.NAME1)
 
     @_("NAME")
     def name(self, p):
         return p.NAME
 
     def error(self, p):
-        print(f'{self.cls_module}.{self.cls_name}:{getattr(p,"lineno","")}: '
-              f'Syntax error at {getattr(p,"value","EOC")}')
+        print('{}.{}:{}: '
+              'Syntax error at {}'.format(self.cls_module, self.cls_name, getattr(p,"lineno",""), getattr(p,"value","EOC")))
 
 class SchMeta(DocParseMeta):
     lexer = SchLexer
@@ -161,7 +163,7 @@ class Rat(Sch):
     )
     '''
     def __repr__(self):
-        return f'Rat({self.numer}, {self.denom})'
+        return 'Rat({}, {})'.format(self.numer, self.denom)
 
 if __name__ == '__main__':
     a = Rat(2, 3)
