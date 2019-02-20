@@ -13,6 +13,10 @@ If you want me to upload this thing to PyPI so that you can do
 ``pip install sly35`` or something, let me know by creating an issue on
 GitHub.
 
+Note that **sly.docparse and sly.ast do not work** because they use
+``__init_subclass__`` magic, which is new in Python 3.6. Create an issue
+if you need them in Python 3.5.
+
 
 How does it work?
 -----------------
