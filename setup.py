@@ -9,6 +9,8 @@ setup(name = "sly",
             description="SLY - Sly Lex Yacc",
             long_description = """
 SLY is an implementation of lex and yacc for Python 3.
+
+This is a fork to support Python 3.5.
 """,
             license="""BSD""",
             version = "0.4",
